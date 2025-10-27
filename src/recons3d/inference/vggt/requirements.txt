@@ -1,0 +1,12 @@
+#VGGT
+Pillow
+numpy<2
+torch
+torchvision
+huggingface_hub
+einops
+safetensors
+#API
+fastapi
+uvicorn
+requests
