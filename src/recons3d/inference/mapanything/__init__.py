@@ -33,10 +33,9 @@ class MapanythingInference:
             views,
             memory_efficient_inference = False #Experiment with True
         )
-        world_points_list = []
-        masks_list = []
 
-        for view_idx, pred in enumerate(outputs):
+        #Add 3D points in world frame
+        for pred in outputs:
             depth_torch = pred["depth_z"][0].squeeze(-1)
             intrinsics_torch = pred["intrinsics"][0]
             camera_pose_torch = pred["camera_poses"][0]
@@ -50,8 +49,13 @@ class MapanythingInference:
             mask = pred["mask"][0].squeeze(-1).cpu().numpy().astype(bool)
             mask = mask & valid_mask.cpu().numpy()
             pts3d_np = pts3d_computed.cpu().numpy()
+            pred["pts3d_computed"] = pts3d_np
+            pred["pts3d_computed_mask"] = mask
 
-            world_points_list.append(pts3d_np)
-            masks_list.append(mask)
+        #Convert tensors to np array
+        for pred in outputs:
+            for k, v in pred.items():
+                if isinstance(v, torch.Tensor):
+                    pred[k] = v.squeeze(0).cpu().numpy()
 
         return outputs
