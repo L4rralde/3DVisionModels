@@ -63,7 +63,7 @@ class VggtInference:
         predictions_renamed = {
             'model': 'vggt',
             'world_points': world_points_from_depth,
-            'images': predictions['images'],
+            'images': predictions['images'].transpose(0, 2, 3, 1),
             'extrinsic': predictions['extrinsic'],
             'intrinsic': predictions['intrinsic'],
             'conf': predictions['depth_conf']

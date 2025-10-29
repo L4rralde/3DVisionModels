@@ -67,7 +67,8 @@ class MapanythingInference:
             'intrinsics',
             'camera_poses',
             'pts3d_computed',
-            'pts3d_computed_mask'
+            'pts3d_computed_mask',
+            'img_no_norm'
         ]
         predictions_to_keep = defaultdict(list)
         for pred in outputs:
