@@ -1,7 +1,9 @@
 import os
 from typing import List
+from collections import defaultdict
 
 import torch
+import numpy as np
 
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -58,4 +60,31 @@ class MapanythingInference:
                 if isinstance(v, torch.Tensor):
                     pred[k] = v.squeeze(0).cpu().numpy()
 
-        return outputs
+        #Converting list of dicts to dict of lists
+        to_keep = [
+            'metric_scaling_factor',
+            'conf',
+            'intrinsics',
+            'camera_poses',
+            'pts3d_computed',
+            'pts3d_computed_mask'
+        ]
+        predictions_to_keep = defaultdict(list)
+        for pred in outputs:
+            for k in to_keep:
+                predictions_to_keep[k].append(pred[k])
+        for k, v in predictions_to_keep.items():
+            predictions_to_keep[k] = np.stack(v)
+        
+        renamed_predictions = {
+            'model': 'map-anything',
+            'world_points': predictions_to_keep['pts3d_computed'],
+            'images': predictions_to_keep['img_no_norm'],
+            'extrinsic': predictions_to_keep['camera_poses'],
+            'intrinsic': predictions_to_keep['intrinsics'],
+            'conf': predictions_to_keep['conf'],
+            'mask': predictions_to_keep['pts3d_computed_mask'],
+            'scale': predictions_to_keep['metric_scaling_factor']
+        }
+        
+        return renamed_predictions

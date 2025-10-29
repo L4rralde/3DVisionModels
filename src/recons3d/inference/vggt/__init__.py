@@ -54,10 +54,19 @@ class VggtInference:
             if isinstance(value, torch.Tensor):
                 predictions[key] = value.cpu().numpy().squeeze(0)
 
-        predictions["world_points_from_depth"] = unproject_depth_map_to_point_map(
+        world_points_from_depth = unproject_depth_map_to_point_map(
             predictions["depth"],
             predictions["extrinsic"],
             predictions["intrinsic"]
         )
 
-        return predictions
+        predictions_renamed = {
+            'model': 'vggt',
+            'world_points': world_points_from_depth,
+            'images': predictions['images'],
+            'extrinsic': predictions['extrinsic'],
+            'intrinsic': predictions['intrinsic'],
+            'conf': predictions['depth_conf']
+        }
+
+        return predictions_renamed
