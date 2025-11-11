@@ -69,17 +69,15 @@ class ClusterGraph:
 
         groups = tmp_df['clusters']
         level = 0
-        while len(groups.unique()) > 2:
+        while True:
             connections, edges = self.get_connections(groups)
-            graphs = ClusterGraph.connect_edges(edges)
-            groups = groups.apply(lambda label: ClusterGraph.get_graph_idx(label, graphs))
-
             all_connections += connections
+            graphs = ClusterGraph.connect_edges(edges)
+            if len(graphs) == 1:
+                break
+            groups = groups.apply(lambda label: ClusterGraph.get_graph_idx(label, graphs))
             tmp_df[f'graph_{level}'] = groups
             level += 1
-        
-        connections, _ = self.get_connections(groups)
-        all_connections += connections
 
         return tmp_df, all_connections
 
@@ -192,4 +190,3 @@ class ClusterGraph:
         #self.save_photos(os.path.join(dir_path, 'photos'))
         self.save_connections(os.path.join(dir_path, 'connections.csv'))
         self.save_hierarchy(os.path.join(dir_path, 'hierarcy_feats.json'))
-
