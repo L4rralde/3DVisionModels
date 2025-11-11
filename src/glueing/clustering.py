@@ -35,8 +35,8 @@ class ClusterGraph:
         if not "clusters" in self.feats_df.df.columns:
             raise ValueError("The dataframe must include the 'clusters' column")
         
-        hierarchy_df, self.connections = self.build()
-        self.hierarchy_feats_df = FeaturesDf(hierarchy_df, feats_df.dir_path)
+        self.connections: list = []
+        self.hierarchy_feats_df: FeaturesDf|None = None 
 
     def __str__(self) -> str:
         return str(self.edges)
@@ -63,7 +63,7 @@ class ClusterGraph:
         
         return list(set(key_photos))
 
-    def build(self) -> tuple:
+    def build(self, depth: int = -1) -> "ClusterGraph":
         all_connections = []
         tmp_df = pd.DataFrame(self.feats_df.df)
 
@@ -77,9 +77,16 @@ class ClusterGraph:
                 break
             groups = groups.apply(lambda label: ClusterGraph.get_graph_idx(label, graphs))
             tmp_df[f'graph_{level}'] = groups
+
             level += 1
 
-        return tmp_df, all_connections
+            if depth >= 2 and (level+1) == depth:
+                break
+
+        self.connections = all_connections
+        self.hierarchy_feats_df = FeaturesDf(tmp_df, self.feats_df.dir_path)
+
+        return self
 
     def get_group_sim_matrix(self, label_a: int, df_groups: pd.Series) -> np.array:
         idcs = np.where(df_groups==label_a)[0]
@@ -197,11 +204,13 @@ def hierarchical_clustering(feats_df: FeaturesDf):
     aux_df['clusters'] = aux_df.reset_index(drop=True).index
 
     aux_feats_df = FeaturesDf(aux_df, feats_df.dir_path)
-    graph = ClusterGraph(aux_feats_df)
+    graph = ClusterGraph(aux_feats_df).build(depth=3)
 
     aux_df = pd.DataFrame(feats_df.df)
+
+    print(graph.hierarchy_feats_df.df)
     aux_df['clusters'] = graph.hierarchy_feats_df.df['graph_1']
     aux_feats_df = FeaturesDf(aux_df, feats_df.dir_path)
-    graph = ClusterGraph(aux_feats_df)
+    graph = ClusterGraph(aux_feats_df).build()
 
     return graph
