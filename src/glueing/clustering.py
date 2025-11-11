@@ -190,3 +190,18 @@ class ClusterGraph:
         #self.save_photos(os.path.join(dir_path, 'photos'))
         self.save_connections(os.path.join(dir_path, 'connections.csv'))
         self.save_hierarchy(os.path.join(dir_path, 'hierarcy_feats.json'))
+
+
+def hierarchical_clustering(feats_df: FeaturesDf):
+    aux_df = pd.DataFrame(feats_df.df)
+    aux_df['clusters'] = aux_df.reset_index(drop=True).index
+
+    aux_feats_df = FeaturesDf(aux_df, feats_df.dir_path)
+    graph = ClusterGraph(aux_feats_df)
+
+    aux_df = pd.DataFrame(feats_df.df)
+    aux_df['clusters'] = graph.hierarchy_feats_df.df['graph_1']
+    aux_feats_df = FeaturesDf(aux_df, feats_df.dir_path)
+    graph = ClusterGraph(aux_feats_df)
+
+    return graph
