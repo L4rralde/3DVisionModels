@@ -41,20 +41,3 @@ class FeaturesDf:
 
     def save(self, path: os.PathLike):
         self.df.to_json(path)
-
-
-class ClusteredFeaturesDf(FeaturesDf):
-    def __init__(self, df: pd.DataFrame, dir_path: os.PathLike = ""):
-        super().__init__(df, dir_path)
-        if not 'clusters' in self.df:
-            raise ValueError(f"Dataframe does not include 'clusters' column")
-
-        self.clusters = {
-            label: self.df[self.df['clusters'] == label]
-            for label in self.df['clusters'].unique()
-        }
-
-
-class HierarchicalTree:
-    def __init__(self) -> None:
-        pass

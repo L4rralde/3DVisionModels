@@ -1,18 +1,19 @@
 import os
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import HDBSCAN
+from PIL import Image
 
-from .types import FeaturesDf, ClusteredFeaturesDf
+from .types import FeaturesDf
 
 
 def hdbscan_clustering(
     feats_df: FeaturesDf,
     min_cluster_size: int=3,
     max_cluster_size: int=15
-) -> ClusteredFeaturesDf:
+) -> FeaturesDf:
     feats_mat = feats_df.feats_mat
     hdbscan = HDBSCAN(
         min_cluster_size=min_cluster_size,
@@ -24,28 +25,51 @@ def hdbscan_clustering(
     new_df = pd.DataFrame(feats_df.df)
     new_df['clusters'] = hdbscan.labels_
 
-    return ClusteredFeaturesDf(new_df, feats_df.dir_path)
+    return FeaturesDf(new_df, feats_df.dir_path)
 
 
 class ConnectedClusterTree:
-    def __init__(self, feats_df: FeaturesDf, depth: int=-1) -> None:
+    def __init__(self) -> None:
+        self.connections: List[tuple] = []
+        self.df: pd.DataFrame = pd.DataFrame()
+
+    @staticmethod
+    def from_feature_df(feats_df: FeaturesDf, depth: int=-1) -> "ConnectedClusterTree":
+        if not 'clusters' in feats_df.df.columns:
+            raise ValueError("Input FeaturesDf does not include clusters")
         df = pd.DataFrame(feats_df.df)
         df = df[df['clusters'] >= 0]
-        self.clustered_feats_df = ClusteredFeaturesDf(df, feats_df.dir_path)
-        self.depth = depth
-        
-        self.connections: list = []
-        self.build()
+        clustered_feats_df = FeaturesDf(df, feats_df.dir_path)
 
-    def __str__(self) -> str:
-        return str(self.edges)
+        tree = ConnectedClusterTree()
+        tree.connections, tree.df = ConnectedClusterTree.build(clustered_feats_df, depth)
+        return tree
+
+    @property
+    def edges(self) -> list:
+        edges = []
+        for edge in self.connections:
+            label_src = edge['src_cluster'].item()
+            label_dst = edge['dst_cluster'].item()
+            weight = edge['weight']
+            edges.append((label_src, label_dst, weight))
+
+        return edges
+
+    @property
+    def key_photos(self) -> list:
+        key_photos = []
+        for connection in self.connections:
+            key_photos += [connection['src_image_path'], connection['dst_image_path']]
+        
+        return list(set(key_photos))
 
     @property
     def clusters(self) -> Dict[str, set]:
-        df_clusters =  self.clustered_feats_df.clusters
+        df = self.df
         clusters = {
-            label: set(df_clusters['image_paths'])
-            for label in df_clusters.keys()
+            label: set(df[df['clusters'] == label])
+            for label in df['clusters'].unique()
         }
         return clusters
 
@@ -62,37 +86,53 @@ class ConnectedClusterTree:
             disjoint_clusters[src_label].add(dst_img)
         
         return disjoint_clusters
+    
+    def __str__(self) -> str:
+        return str(self.edges)
 
-    @property
-    def edges(self) -> list:
-        df = self.clustered_feats_df.df
-        edges = []
-        for edge in self.connections:
-            i = edge['src_image_idx']
-            j = edge['dst_image_idx']
-            label_src = df['clusters'].iloc[i].item()
-            label_dst = df['clusters'].iloc[j].item()
-            weight = edge['weight']
-            edges.append((label_src, label_dst, weight))
+    def save_connections(self, path: os.PathLike) -> None:
+        df = pd.DataFrame(self.connections)
+        df.to_csv(path)
 
-        return edges
+    def save_hierarchy(self, path: os.PathLike) -> None:
+        self.df.to_csv(path)
 
-    @property
-    def key_photos(self) -> list:
-        key_photos = []
-        for connection in self.connections:
-            key_photos += [connection['src_image_path'], connection['dst_image_path']]
-        
-        return list(set(key_photos))
+    def save(self, dir_path: os.PathLike) -> None:
+        os.makedirs(dir_path, exist_ok=True)
+        self.save_connections(os.path.join(dir_path, 'connections.csv'))
+        self.save_hierarchy(os.path.join(dir_path, 'hierarcy_feats.csv'))
 
-    def build(self) -> "ConnectedClusterTree":
+    def save_photos(self, photos_dir: os.PathLike=".", output_dir: os.PathLike="tree") -> None:
+        tree_levels = sorted([
+            column
+            for column in self.df.columns
+            if 'tree_' in column
+        ], reverse=True)
+
+        for i, row in self.df.iterrows():
+            trees = [
+                str(value)
+                for value in row[tree_levels].values
+            ]
+            image = Image.open(os.path.join(photos_dir, row['image_paths']))
+            path = os.path.join(
+                output_dir,
+                *trees,
+                str(row['clusters']),
+                row['image_paths']
+            )
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            image.save(path)
+
+    @staticmethod
+    def build(clustered_feats_df: FeaturesDf, depth: int=-1) -> tuple:
         all_connections = []
-        tmp_df = pd.DataFrame(self.clustered_feats_df.df)
+        tmp_df = pd.DataFrame(clustered_feats_df.df)
 
         groups = tmp_df['clusters']
         level = 0
         while True:
-            connections, edges = self.get_connections(groups)
+            connections, edges = ConnectedClusterTree.get_connections(clustered_feats_df, groups)
             all_connections += connections
             trees = ConnectedClusterTree.connect_edges(edges)
             if len(trees) == 1:
@@ -102,15 +142,17 @@ class ConnectedClusterTree:
 
             level += 1
 
-            if self.depth >= 2 and (level+1) == self.depth:
+            if depth >= 2 and (level+1) == depth:
                 break
 
-        self.connections = all_connections
-        self.clustered_feats_df = ClusteredFeaturesDf(tmp_df, self.clustered_feats_df.dir_path)
+        connections = all_connections
+        clustered_feats_df = FeaturesDf(tmp_df, clustered_feats_df.dir_path)
+        df = clustered_feats_df.df.drop(columns=['global_descriptors'])
 
-        return self
+        return connections, df
 
-    def get_group_sim_matrix(self, label_a: int, df_groups: pd.Series) -> np.array:
+    @staticmethod
+    def get_group_sim_matrix(clustered_feats_df: FeaturesDf, label_a: int, df_groups: pd.Series) -> np.array:
         idcs = np.where(df_groups==label_a)[0]
         mask_a = np.zeros(len(df_groups))
         mask_a[idcs] = 1
@@ -123,11 +165,12 @@ class ConnectedClusterTree:
 
         mask = np.dot(mask_a.T, mask_b)
 
-        return mask * self.clustered_feats_df.sims_mat
+        return mask * clustered_feats_df.sims_mat
 
-    def find_group_connection(self, label: int, df_groups: pd.Series) -> dict:
-        df = self.clustered_feats_df.df
-        sim_mat = self.get_group_sim_matrix(label, df_groups)
+    @staticmethod
+    def find_group_connection(clustered_feats_df: FeaturesDf, label: int, df_groups: pd.Series) -> dict:
+        df = clustered_feats_df.df
+        sim_mat = ConnectedClusterTree.get_group_sim_matrix(clustered_feats_df, label, df_groups)
         weight = sim_mat.max()
         i, j = np.where(sim_mat == weight)
         i = i.item()
@@ -146,9 +189,10 @@ class ConnectedClusterTree:
             'weight': weight.item()
         }
 
-    def get_connections(self, df_groups: pd.Series) -> tuple:
+    @staticmethod
+    def get_connections(clustered_feats_df: FeaturesDf, df_groups: pd.Series) -> tuple:
         connections = [
-            self.find_group_connection(i, df_groups)
+            ConnectedClusterTree.find_group_connection(clustered_feats_df, i, df_groups)
             for i in range(df_groups.max() + 1)
         ]
         
@@ -185,54 +229,18 @@ class ConnectedClusterTree:
                 return i
         return -1
 
-    def save_photos(self, dir_path: os.PathLike="tree") -> None:
-        tree_levels = sorted([
-            column
-            for column in self.clustered_feats_df.df.columns
-            if 'tree_' in column
-        ], reverse=True)
-
-        for i, row in enumerate(self.clustered_feats_df):
-            trees = [
-                str(value)
-                for value in row[tree_levels].values
-            ]
-            image = self.clustered_feats_df.get_image(i)
-            path = os.path.join(
-                dir_path,
-                *trees,
-                str(row['clusters']),
-                row['image_paths']
-            )
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            image.save(path)
-
-    def save_connections(self, path: os.PathLike) -> None:
-        df = pd.DataFrame(self.connections)
-        df.to_csv(path)
-
-    def save_hierarchy(self, path: os.PathLike) -> None:
-        self.clustered_feats_df.save(path)
-
-    def save(self, dir_path: os.PathLike) -> None:
-        os.makedirs(dir_path, exist_ok=True)
-        #self.save_photos(os.path.join(dir_path, 'photos'))
-        self.save_connections(os.path.join(dir_path, 'connections.csv'))
-        self.save_hierarchy(os.path.join(dir_path, 'hierarcy_feats.json'))
-
 
 def hierarchical_clustering(feats_df: FeaturesDf):
     aux_df = pd.DataFrame(feats_df.df)
     aux_df['clusters'] = aux_df.reset_index(drop=True).index
 
     aux_feats_df = FeaturesDf(aux_df, feats_df.dir_path)
-    tree = ConnectedClusterTree(aux_feats_df, depth=3)
+    tree = ConnectedClusterTree.from_feature_df(aux_feats_df, depth=3)
 
     aux_df = pd.DataFrame(feats_df.df)
 
-    aux_df['clusters'] = tree.clustered_feats_df.df['tree_1']
+    aux_df['clusters'] = tree.df['tree_1']
     aux_feats_df = FeaturesDf(aux_df, feats_df.dir_path)
-    tree = ConnectedClusterTree(aux_feats_df)
+    tree = ConnectedClusterTree.from_feature_df(aux_feats_df)
 
     return tree
-

@@ -30,7 +30,6 @@ def parse_args():
     return args
 
 
-
 def main():
     args = parse_args()
 
@@ -43,14 +42,14 @@ def main():
     #2. Filter out duplicates and outliers
     filtered_feats = glueing.filter_features_df(features_df, args.filter_l, args.filter_h)
 
-    #3. Build tree/graph
-    graph = glueing.hierarchical_clustering(filtered_feats)
+    #3. Build tree
+    tree = glueing.hierarchical_clustering(filtered_feats)
 
     #4. Dump results
     #4.1 Dump cliustering info
-    graph.save(args.output_dir)
+    tree.save(args.output_dir)
     #4.2 Dump key photos file
-    key_photos = graph.key_photos
+    key_photos = tree.key_photos
     key_photos_path = os.path.join(args.output_dir, 'key_photos.txt')
     with open(key_photos_path, 'w') as file:
         for item in key_photos:
@@ -61,7 +60,8 @@ def main():
         return
 
     #4.3.1 Dump photos hierarchy
-    graph.save_photos(args.output_dir)
+    hierarchy_dir = os.path.join(args.output_dir, 'hierarchy_photos')
+    tree.save_photos(args.photos_dir, hierarchy_dir)
     
     #4.3.2 Dump key photos.
     os.makedirs(os.path.join(args.output_dir, 'key_photos'))
