@@ -45,12 +45,18 @@ class ConnectedClusterTree:
         tree.connections, tree.df = ConnectedClusterTree.build(clustered_feats_df, depth)
         return tree
 
+    @staticmethod
+    def from_dir_output(dir_path: os.PathLike) -> "ConnectedClusterTree":
+        tree = ConnectedClusterTree()
+        tree.load(dir_path)
+        return tree
+
     @property
     def edges(self) -> list:
         edges = []
         for edge in self.connections:
-            label_src = edge['src_cluster'].item()
-            label_dst = edge['dst_cluster'].item()
+            label_src = edge['src_cluster']
+            label_dst = edge['dst_cluster']
             weight = edge['weight']
             edges.append((label_src, label_dst, weight))
 
@@ -68,7 +74,7 @@ class ConnectedClusterTree:
     def clusters(self) -> Dict[str, set]:
         df = self.df
         clusters = {
-            label: set(df[df['clusters'] == label])
+            label: set(df[df['clusters'] == label]['image_paths'])
             for label in df['clusters'].unique()
         }
         return clusters
@@ -94,13 +100,24 @@ class ConnectedClusterTree:
         df = pd.DataFrame(self.connections)
         df.to_csv(path)
 
+    def load_connections(self, path: os.PathLike) -> None:
+        df_connections = pd.read_csv(path).drop(columns='Unnamed: 0')
+        self.connections = df_connections.to_dict(orient='records')
+
     def save_hierarchy(self, path: os.PathLike) -> None:
         self.df.to_csv(path)
+
+    def load_hierarchy(self, path: os.PathLike) -> None:
+        self.df = pd.read_csv(path).drop(columns='Unnamed: 0')
 
     def save(self, dir_path: os.PathLike) -> None:
         os.makedirs(dir_path, exist_ok=True)
         self.save_connections(os.path.join(dir_path, 'connections.csv'))
         self.save_hierarchy(os.path.join(dir_path, 'hierarcy_feats.csv'))
+
+    def load(self, dir_path: os.PathLike) -> None:
+        self.load_connections(os.path.join(dir_path, 'connections.csv'))
+        self.load_hierarchy(os.path.join(dir_path, 'hierarcy_feats.csv'))
 
     def save_photos(self, photos_dir: os.PathLike=".", output_dir: os.PathLike="tree") -> None:
         tree_levels = sorted([
