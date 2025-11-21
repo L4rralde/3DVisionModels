@@ -6,6 +6,15 @@ from PIL import Image
 import src.glueing as glueing
 
 
+def check_args(args):
+    if args.save_photos and args.photos_dir == '':
+        raise ValueError("To save photos, --photos_dir must be provided")
+    if args.save_photos and not os.path.exists(args.photos_dir):
+        raise ValueError(f"--photos_dir:{args.photos_dir} does not exist.")
+
+    return args
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--global_features', required=True)
@@ -13,36 +22,48 @@ def parse_args():
     parser.add_argument('--output_dir', required=True)
     parser.add_argument('--filter_l', default=0.3)
     parser.add_argument('--filter_h', default=0.8)
-    parser.add_argument('--min_elements', default=3)
-    parser.add_argument('--max_elements', default=10)
     parser.add_argument('--save_photos', action='store_true')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    args = check_args(args)
+
+    return args
 
 
 def main():
     args = parse_args()
 
+    #1. Read global features
     features_df = glueing.FeaturesDf.from_json(
         args.global_features,
         args.photos_dir
     )
 
+    #2. Filter out duplicates and outliers
     filtered_feats = glueing.filter_features_df(features_df, args.filter_l, args.filter_h)
 
-    clustered_feats_df = glueing.hdbscan_clustering(filtered_feats, args.min_elements, args.max_elements)
-    graph = glueing.ClusterGraph(clustered_feats_df)
+    #3. Build tree
+    tree = glueing.hierarchical_clustering(filtered_feats)
 
-    graph.save(args.output_dir)
-    key_photos = graph.key_photos
+    #4. Dump results
+    #4.1 Dump cliustering info
+    tree.save(args.output_dir)
+    #4.2 Dump key photos file
+    key_photos = tree.key_photos
     key_photos_path = os.path.join(args.output_dir, 'key_photos.txt')
     with open(key_photos_path, 'w') as file:
         for item in key_photos:
             file.write(item + '\n')
 
-    if args.save_photos:
-        graph.save_photos(args.output_dir)
+    #(Optional)4.3 Dump photos
+    if not args.save_photos:
+        return
+
+    #4.3.1 Dump photos hierarchy
+    hierarchy_dir = os.path.join(args.output_dir, 'hierarchy_photos')
+    tree.save_photos(args.photos_dir, hierarchy_dir)
     
+    #4.3.2 Dump key photos.
     os.makedirs(os.path.join(args.output_dir, 'key_photos'))
     for key_photo in key_photos:
         input_path = os.path.join(args.photos_dir, key_photo)
