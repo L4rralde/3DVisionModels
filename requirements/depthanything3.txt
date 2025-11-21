@@ -1,0 +1,22 @@
+omegaconf
+pillow
+opencv-python
+evo
+numpy<2
+
+torch==2.8.0
+torchvision==0.23.0
+einops
+huggingface_hub
+xformers==0.0.32.post2
+safetensors
+
+fastapi
+uvicorn
+requests
+
+#Required to use DepthAnything Api
+moviepy==1.0.3
+addict
+plyfile
+trimesh
