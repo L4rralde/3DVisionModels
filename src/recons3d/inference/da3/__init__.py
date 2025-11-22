@@ -26,6 +26,8 @@ class Da3Inference:
         "DA3-SMALL"
     )
     def __init__(self, model_name: str="DA3-GIANT", **kwargs) -> None:
+        #Gaussian splatting not supported yet. gsplat nor e3nn are installed.
+        # Both are only required for gaussian splatting features.
         if not model_name in Da3Inference.MODEL_NAMES:
             raise ValueError(f"Model name {model_name} not supported")
         self.model_name = model_name
@@ -46,7 +48,7 @@ class Da3Inference:
             conf_thresh_percentile: Lower percentile used when adapting the confidence threshold.
             ensure_thresh_percentile: Upper percentile clamp for the adaptive threshold.
         """
-        prediction: Prediction = self.model(img_path_list)
+        prediction: Prediction = self.model.inference(img_path_list)
         img_names = [os.path.basename(path) for path in img_path_list]
 
         points, _ = _depths_to_world_points_with_colors( #Warning, this returns a flatten array with valid depth points. You want all.
@@ -58,14 +60,14 @@ class Da3Inference:
             conf_thr=0.0 #This value must ensure no point is discarded.
         )
 
-        points = points.reshape(prediction.depth.shape) #Keep image shape. Now is a point map
+        points = points.reshape((*prediction.depth.shape, 3)) #Keep image shape. Now is a point map
 
         predictions_dict = {
             'model': self.model_name,
             'world_points': points,
             'is_metric': prediction.is_metric,
             'images': prediction.processed_images,
-            'image_paths': img,
+            'image_paths': img_names,
             'extrinsic': prediction.extrinsics,
             'intrinsic': prediction.intrinsics,
             'conf': prediction.conf,
