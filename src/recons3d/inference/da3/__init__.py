@@ -25,7 +25,7 @@ class Da3Inference:
         "DA3-BASE",
         "DA3-SMALL"
     )
-    def __init__(self, model_name: str="DA3-GIANT") -> None:
+    def __init__(self, model_name: str="DA3-GIANT", **kwargs) -> None:
         if not model_name in Da3Inference.MODEL_NAMES:
             raise ValueError(f"Model name {model_name} not supported")
         self.model_name = model_name
@@ -47,6 +47,7 @@ class Da3Inference:
             ensure_thresh_percentile: Upper percentile clamp for the adaptive threshold.
         """
         prediction: Prediction = self.model(img_path_list)
+        img_names = [os.path.basename(path) for path in img_path_list]
 
         points, _ = _depths_to_world_points_with_colors( #Warning, this returns a flatten array with valid depth points. You want all.
             prediction.depth,
@@ -64,6 +65,7 @@ class Da3Inference:
             'world_points': points,
             'is_metric': prediction.is_metric,
             'images': prediction.processed_images,
+            'image_paths': img,
             'extrinsic': prediction.extrinsics,
             'intrinsic': prediction.intrinsics,
             'conf': prediction.conf,

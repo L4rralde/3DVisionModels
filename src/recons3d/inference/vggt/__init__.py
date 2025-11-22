@@ -16,7 +16,7 @@ DEVICE = "cuda"
 
 
 class VggtInference:
-    def __init__(self):
+    def __init__(self, **kwargs):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA must be available to use this model")
         self.model = VggtInference.load_model_for_inference()
@@ -37,6 +37,7 @@ class VggtInference:
         torch.cuda.empty_cache()
 
         images = load_and_preprocess_images(img_path_list).to(DEVICE)
+        img_names = [os.path.basename(path) for path in img_path_list]
         dtype = torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float16
         with torch.no_grad():
             with torch.amp.autocast(DEVICE, dtype=dtype):
@@ -64,6 +65,7 @@ class VggtInference:
             'model': 'vggt',
             'world_points': world_points_from_depth,
             'images': predictions['images'].transpose(0, 2, 3, 1),
+            'image_names': img_names,
             'extrinsic': predictions['extrinsic'],
             'intrinsic': predictions['intrinsic'],
             'conf': predictions['depth_conf']

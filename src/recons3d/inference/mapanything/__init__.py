@@ -16,7 +16,7 @@ DEVICE = "cuda"
 
 
 class MapanythingInference:
-    def __init__(self):
+    def __init__(self, **kwargs):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA must be available to use this model")
         self.model = MapanythingInference.load_model_for_inference()
@@ -35,6 +35,7 @@ class MapanythingInference:
             views,
             memory_efficient_inference = False #Experiment with True
         )
+        img_names = [os.path.basename(path) for path in img_path_list]
 
         #Add 3D points in world frame
         for pred in outputs:
@@ -81,6 +82,7 @@ class MapanythingInference:
             'model': 'map-anything',
             'world_points': predictions_to_keep['pts3d_computed'],
             'images': predictions_to_keep['img_no_norm'],
+            'image_names': img_names,
             'extrinsic': predictions_to_keep['camera_poses'],
             'intrinsic': predictions_to_keep['intrinsics'],
             'conf': predictions_to_keep['conf'],
