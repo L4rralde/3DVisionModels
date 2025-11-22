@@ -67,6 +67,7 @@ class MapanythingInference:
             'conf',
             'intrinsics',
             'camera_poses',
+            'depth_z',
             'pts3d_computed',
             'pts3d_computed_mask',
             'img_no_norm'
@@ -77,9 +78,10 @@ class MapanythingInference:
                 predictions_to_keep[k].append(pred[k])
         for k, v in predictions_to_keep.items():
             predictions_to_keep[k] = np.stack(v)
-        
+
         renamed_predictions = {
             'model': 'map-anything',
+            'depth': predictions_to_keep['depth_z'].squeeze(-1),
             'world_points': predictions_to_keep['pts3d_computed'],
             'images': predictions_to_keep['img_no_norm'],
             'image_names': img_names,

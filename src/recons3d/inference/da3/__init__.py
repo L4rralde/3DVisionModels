@@ -64,6 +64,7 @@ class Da3Inference:
 
         predictions_dict = {
             'model': self.model_name,
+            'depth': prediction.depth,
             'world_points': points,
             'is_metric': prediction.is_metric,
             'images': prediction.processed_images,

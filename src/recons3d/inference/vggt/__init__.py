@@ -63,6 +63,7 @@ class VggtInference:
 
         predictions_renamed = {
             'model': 'vggt',
+            'depth': predictions['depth'].squeeze(-1), #I'm not sure is this will cause future bugs. Namely, removing the last singleton dimension.
             'world_points': world_points_from_depth,
             'images': predictions['images'].transpose(0, 2, 3, 1),
             'image_names': img_names,
