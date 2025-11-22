@@ -62,10 +62,10 @@ def main():
         tree = ConnectedClusterTree.from_dir_output(args.from_hierarchical_clustering)
         clusters = tree.joint_clusters
         img_groups = {
-            str(label): {
+            str(label): [
                 os.path.join(args.dataset_path, path)
                 for path in cluster_img_paths
-            }
+            ]
             for label, cluster_img_paths in clusters.items()
         }
 
