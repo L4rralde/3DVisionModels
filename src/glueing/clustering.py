@@ -3,7 +3,6 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import HDBSCAN
 from PIL import Image
 
 from .types import FeaturesDf
@@ -14,6 +13,8 @@ def hdbscan_clustering(
     min_cluster_size: int=3,
     max_cluster_size: int=15
 ) -> FeaturesDf:
+    from sklearn.cluster import HDBSCAN
+
     feats_mat = feats_df.feats_mat
     hdbscan = HDBSCAN(
         min_cluster_size=min_cluster_size,
@@ -113,11 +114,11 @@ class ConnectedClusterTree:
     def save(self, dir_path: os.PathLike) -> None:
         os.makedirs(dir_path, exist_ok=True)
         self.save_connections(os.path.join(dir_path, 'connections.csv'))
-        self.save_hierarchy(os.path.join(dir_path, 'hierarcy_feats.csv'))
+        self.save_hierarchy(os.path.join(dir_path, 'hierarchy_feats.csv'))
 
     def load(self, dir_path: os.PathLike) -> None:
         self.load_connections(os.path.join(dir_path, 'connections.csv'))
-        self.load_hierarchy(os.path.join(dir_path, 'hierarcy_feats.csv'))
+        self.load_hierarchy(os.path.join(dir_path, 'hierarchy_feats.csv'))
 
     def save_photos(self, photos_dir: os.PathLike=".", output_dir: os.PathLike="tree") -> None:
         tree_levels = sorted([
