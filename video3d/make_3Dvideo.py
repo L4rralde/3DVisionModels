@@ -5,7 +5,7 @@ import numpy as np
 import open3d as o3d
 from tqdm import tqdm
 
-from .utils import to_pointcloud, align
+from utils import to_pointcloud, align
 
 
 def parse_args():
@@ -21,7 +21,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    input_path = argparse.input
+    input_path = args.input
     scene_predictions_p = os.path.join(input_path, 'predicts.npz')
     scene_predictions = np.load(scene_predictions_p, allow_pickle=True)
 

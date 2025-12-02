@@ -13,7 +13,7 @@ def get_conf_mask(conf):
 
 def to_pointcloud(conf, images, world_points):
     mask = get_conf_mask(conf)
-    mask = np.ones_like(conf, dtype=np.bool_)
+    #mask = np.ones_like(conf, dtype=np.bool_)
 
     points = world_points[mask].reshape(-1, 3)
     colors = images[mask].reshape(-1, 3)
