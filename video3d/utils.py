@@ -1,5 +1,7 @@
 import numpy as np
 import open3d as o3d
+from scipy.optimize import minimize
+from scipy.special import huber
 
 
 def get_conf_mask(conf):
@@ -24,9 +26,6 @@ def to_pointcloud(conf, images, world_points):
 
     return point_cloud
 
-
-from scipy.optimize import minimize
-from scipy.special import huber
 
 def align(
     frame_conf,
