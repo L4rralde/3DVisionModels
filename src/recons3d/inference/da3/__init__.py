@@ -68,7 +68,7 @@ class Da3Inference:
             'world_points': points,
             'is_metric': prediction.is_metric,
             'images': prediction.processed_images/255,
-            'image_paths': img_names,
+            'image_names': img_names,
             'extrinsic': prediction.extrinsics,
             'intrinsic': prediction.intrinsics,
             'conf': prediction.conf,
