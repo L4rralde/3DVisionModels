@@ -26,7 +26,7 @@ def main():
     scene_predictions = np.load(scene_predictions_p, allow_pickle=True)
 
     frame_predictions = []
-    for img_p in scene_predictions['image_paths']:
+    for img_p in scene_predictions['image_names']:
         frame = os.path.splitext(img_p)[0] 
         frame_prediction_p = os.path.join(input_path, f"{frame}.npz")
         frame_predictions.append(np.load(frame_prediction_p, allow_pickle=True))
@@ -60,7 +60,7 @@ def main():
             frame_world_points
         )
 
-        frame = os.path.splitext(frame_predictions[idx]['image_paths'][0])[0]
+        frame = os.path.splitext(frame_predictions[idx]['image_names'][0])[0]
 
         pcd_path = os.path.join(input_path, f"{frame}.ply")
         tqdm.write(f"Writing point cloud to {pcd_path}")
