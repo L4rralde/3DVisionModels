@@ -7,7 +7,7 @@ from scipy.special import huber
 
 def as_homogeneous(extrinsic: np.ndarray) -> np.ndarray:
     homo = np.eye(4)
-    homo[:3, :] = extrinsic[:3, :]
+    homo[:3, :] = extrinsic[:3, :] #Copy.
     return homo
 
 
@@ -46,7 +46,7 @@ def depth_to_frame(
     extrinsic: np.ndarray,
     scale: float=1.0
 ) -> np.ndarray:
-    ext_w2c = as_homogeneous(extrinsic)
+    ext_w2c = as_homogeneous(extrinsic) #Copy
     K = intrinsic
     K_inv = np.linalg.inv(K)
 
@@ -56,7 +56,7 @@ def depth_to_frame(
     ones = np.ones_like(us)
 
     pix = np.stack([us, vs, ones], axis=-1).reshape(-1, 3) # (H*W, 3)
-    scaled_depth = scale * depth
+    scaled_depth = scale * depth #Complete copy
     d_flat = scaled_depth.reshape(-1)
 
     rays = K_inv @ pix.T
@@ -95,7 +95,6 @@ def est_scenes_transform(
     
     #By the moment use first appearance only
     link_name = list(common_images)[0]
-    print(link_name)
 
     src_idx = src_names.index(link_name)
     dst_idx = dst_names.index(link_name)
@@ -113,7 +112,7 @@ def est_scenes_transform(
     )
 
     src_extrinsic_cp = np.copy(src_extrinsic)
-    src_extrinsic_cp[:, -1] *= scale
+    src_extrinsic_cp[:3, -1] *= scale
 
     transform = relative_transform(src_extrinsic_cp, dst_extrinsic)
 
@@ -124,16 +123,15 @@ def transform_scene(
     scene: dict,
     transform: np.ndarray,
     scale: float = 1.0,
-    inplace: bool = False
 ) -> dict:
     transform = as_homogeneous(transform)
 
-    new_scene = scene if inplace else scene.copy()
+    new_scene = dict(scene).copy() #Shallow copy
 
-    new_scene['depth'] *= scale
-    for i, extrinsic in enumerate(scene['extrinsic']):
-        h_extrinsic = as_homogeneous(extrinsic)
-        h_extrinsic[:, -1] *= scale
+    new_scene['depth'] = scene['depth'] * scale #Complete Copy
+    for i, extrinsic in enumerate(new_scene['extrinsic']):
+        h_extrinsic = as_homogeneous(extrinsic) #Complete copy
+        h_extrinsic[:3, -1] *= scale
         new_scene['extrinsic'][i] = (h_extrinsic @ transform)[:3, :]
 
     iterator = zip(
