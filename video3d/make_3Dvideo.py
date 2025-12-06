@@ -5,7 +5,10 @@ import numpy as np
 import open3d as o3d
 from tqdm import tqdm
 
-from utils import to_pointcloud, align
+from utils import to_pointcloud
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from src.glueing.align import est_scale_factor, depth_to_frame
 
 
 def parse_args():
@@ -43,15 +46,14 @@ def main():
         scene_intrinsic = scene_predictions['intrinsic'][idx]
         
         frame_images = frame_predictions[idx]['images'].squeeze(0)
-        
-        
-        frame_world_points = align(
-            frame_conf,
-            scene_conf,
-            frame_depth,
-            scene_depth,
-            scene_extrinsic,
-            scene_intrinsic
+
+        scale = est_scale_factor(
+            frame_depth, frame_conf,
+            scene_depth, scene_conf
+        )
+
+        frame_world_points = depth_to_frame(
+            frame_depth, scene_intrinsic, scene_extrinsic, scale
         )
         
         scene_pcd = to_pointcloud(
