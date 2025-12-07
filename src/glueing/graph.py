@@ -1,7 +1,9 @@
+import os
 from typing import List, Hashable, Tuple, Dict
 from collections import OrderedDict
 from dataclasses import dataclass
 from functools import lru_cache
+from glob import glob
 
 import numpy as np
 from scipy.sparse import csr_array
@@ -13,13 +15,30 @@ class Node:
     def __init__(self) -> None:
         predictions: dict
         id: Hashable
-
+    
+    @staticmethod
+    def from_npz(path: os.PathLike) -> "Node":
+        preds = np.load(path, allow_pickle=True)
+        hash = os.path.splitext(os.path.basename(path))[0]
+        return Node(preds, hash)
 
 @dataclass
 class Edge:
     src: Hashable
     dst: Hashable
     cost: float
+
+
+def nodes_and_edges(
+    preds_folder: os.PathLike,
+    connections: List[Tuple]
+) -> Tuple[List[Node], List[Edge]]:
+    basenames = glob("*.npz", root_dir=preds_folder)
+    preds_paths = [os.path.join(preds_folder, name) for name in basenames]
+    nodes = [Node.from_npz(path) for path in preds_paths]
+    edges = [Edge(*connection) for connection in connections]
+
+    return nodes, edges
 
 
 @dataclass
@@ -38,6 +57,15 @@ class Graph:
         self.node_ids = list(self.nodes.keys())
         self.edges: List[Edge] = edges
         self.incidence = self.__incidence_matrix()
+
+    @staticmethod
+    def from_preds_folder(
+        preds_folder: os.PathLike,
+        connections: Tuple[Hashable, Hashable, float]
+    ) -> "Graph":
+        nodes, edges = nodes_and_edges(preds_folder, connections)
+        graph = Graph(nodes, edges)
+        return graph
 
     def __incidence_matrix(self) -> np.ndarray:
         matrix = np.inf * np.ones((len(self.nodes), len(self.nodes)))
@@ -109,6 +137,15 @@ class Tree(Graph):
     ) -> None:
         super().__init__(nodes, edges)
         self.root = root
+
+    @staticmethod
+    def from_preds_folder(
+        root: Hashable, 
+        preds_folder: os.PathLike,
+        connections: Tuple[Hashable, Hashable, float]
+    ) -> "Graph":
+        nodes, edges = nodes_and_edges(preds_folder, connections)
+        return Tree(root, nodes, edges)
 
     def shortest_path(self, dst: Hashable) -> Path:
         return super().shortest_path(self.root, dst)
