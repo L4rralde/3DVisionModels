@@ -1,5 +1,5 @@
 import os
-from typing import List, Hashable, Tuple, Dict
+from typing import List, Hashable, Tuple, Dict, Callable
 from collections import OrderedDict
 from dataclasses import dataclass
 from functools import lru_cache
@@ -12,15 +12,17 @@ from scipy.sparse.csgraph import dijkstra
 
 @dataclass
 class Node:
-    def __init__(self) -> None:
-        predictions: dict
-        id: Hashable
+    predictions: dict
+    id: Hashable
     
     @staticmethod
     def from_npz(path: os.PathLike) -> "Node":
         preds = np.load(path, allow_pickle=True)
         hash = os.path.splitext(os.path.basename(path))[0]
         return Node(preds, hash)
+
+    def __repr__(self) -> str:
+        return self.id
 
 @dataclass
 class Edge:
@@ -43,7 +45,7 @@ def nodes_and_edges(
 
 @dataclass
 class Path:
-    path: List[Hashable]
+    path: List[dict]
     cost: float
 
 
@@ -67,8 +69,15 @@ class Graph:
         graph = Graph(nodes, edges)
         return graph
 
+    @property
+    def predictions(self) -> Dict[Hashable, dict]:
+        return {
+            hash: node.predictions
+            for hash, node in self.nodes.items()
+        }
+
     def __incidence_matrix(self) -> np.ndarray:
-        matrix = np.inf * np.ones((len(self.nodes), len(self.nodes)))
+        matrix = np.zeros((len(self.nodes), len(self.nodes)))
         for edge in self.edges:
             idx_src = self.node_ids.index(edge.src)
             idx_dst = self.node_ids.index(edge.dst)
@@ -77,9 +86,6 @@ class Graph:
 
         matrix = np.triu(matrix)
         return matrix
-
-    def paths(self, src: Hashable, dst: Hashable) -> Dict[Hashable, List[Path]]:
-        raise NotImplementedError("TODO")
 
     def __path_from_dijkstra(
         self,
@@ -97,13 +103,14 @@ class Graph:
         while current != src_idx:
             current_id = self.node_ids[current]
             current_node = self.nodes[current_id]
-            path_nodes_list.append(current_node)
+            path_nodes_list.append(current_node.predictions)
             current = predecessors[current]
+        path_nodes_list.append(self.nodes[src].predictions)
 
         return Path(path_nodes_list, cost)
 
     @lru_cache
-    def __shortest_paths(self, src: Hashable) -> Dict[Hashable, Path]:
+    def _shortest_paths(self, src: Hashable) -> Dict[Hashable, Path]:
         graph = csr_array(self.incidence)
 
         src_idx = self.node_ids.index(src)
@@ -119,7 +126,7 @@ class Graph:
         }
 
     def shortest_path(self, src: Hashable, dst: Hashable) -> Path:
-        shortest_paths = self.__shortest_paths(src)
+        shortest_paths = self._shortest_paths(src)
         
         path = shortest_paths[dst]
         if path.cost == np.inf:
@@ -143,9 +150,39 @@ class Tree(Graph):
         root: Hashable, 
         preds_folder: os.PathLike,
         connections: Tuple[Hashable, Hashable, float]
-    ) -> "Graph":
+    ) -> "Tree":
         nodes, edges = nodes_and_edges(preds_folder, connections)
         return Tree(root, nodes, edges)
 
     def shortest_path(self, dst: Hashable) -> Path:
         return super().shortest_path(self.root, dst)
+
+    def align(
+        self,
+        align_function: Callable,
+        current: Hashable|None = None,
+        aligned: Dict[Hashable, bool]|None = None,
+    ) -> Dict[Hashable, bool]:
+        if current is None:
+            current = self.root
+
+        if aligned is None:
+            aligned = {hash: False for hash in self.node_ids}
+        aligned[current] = True
+
+        incidence = self.incidence + self.incidence.transpose()
+        current_i = self.node_ids.index(current)
+        children_idcs,  = np.where(incidence[current_i] > 0)
+        for child_i in children_idcs:
+            child_hash = self.node_ids[child_i]
+            if aligned[child_hash]:
+                continue
+            current_pred = self.nodes[current].predictions
+            child_pred = self.nodes[child_hash].predictions
+
+            aligned_child_pred = align_function(child_pred, current_pred)
+            self.nodes[child_hash].predictions = aligned_child_pred
+
+            aligned = self.align(align_function, child_hash, aligned)
+
+        return aligned

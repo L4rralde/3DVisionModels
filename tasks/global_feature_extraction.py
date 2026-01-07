@@ -44,6 +44,7 @@ def main():
     }
 
     df = pd.DataFrame(d_for_df)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_json(output_path)
 
 
