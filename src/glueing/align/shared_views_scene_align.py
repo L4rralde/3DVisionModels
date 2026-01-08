@@ -4,6 +4,8 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import huber
 
+from third_party.vggt_long.sim3_utils import robust_weighted_estimate_sim3
+
 
 def as_homogeneous(extrinsic: np.ndarray) -> np.ndarray:
     homo = np.eye(4)
@@ -40,6 +42,7 @@ def est_scale_factor(
     return scale
 
 
+#FUTURE: rename to depth_to_pointmap
 def depth_to_frame(
     depth: np.ndarray,
     intrinsic: np.ndarray,
@@ -93,7 +96,7 @@ def est_scenes_transform(
     if not common_images:
         raise ValueError("Non-overlapping scenes")
     
-    #By the moment use first appearance only
+    #By the moment use first appearance only #FIXME. Is this comment still valid?
     link_name = list(common_images)[0]
 
     src_idcs = [src_names.index(name) for name in common_images]
@@ -145,3 +148,43 @@ def transform_scene(
         new_scene['world_points'][i] = points
 
     return new_scene
+
+
+def vggtlong_est_scenes_transform(
+    src_scene: dict,
+    dst_scene: dict
+) -> Tuple[float, np.ndarray]:
+    #FIXME. Duplicated code.
+    src_names = list(src_scene['image_names'])
+    dst_names = list(dst_scene['image_names'])
+    common_images = set(src_names).intersection(set(dst_names))
+    if not common_images:
+        raise ValueError("Non-overlapping scenes")
+
+    src_idcs = [src_names.index(name) for name in common_images]
+    dst_idcs = [dst_names.index(name) for name in common_images]
+
+    src_conf = src_scene["conf"][src_idcs]
+    dst_conf = dst_scene["conf"][dst_idcs]
+    common_mask = get_conf_mask(src_conf) & get_conf_mask(dst_conf)
+
+    src_point = src_scene["world_points"][src_idcs][common_mask]
+    dst_point = dst_scene["world_points"][dst_idcs][common_mask]
+
+    print(src_point.shape, dst_point.shape)
+
+    #Weighting?
+    #Conf values multiplication
+    #initial_weights = src_conf[common_mask]*dst_conf[common_mask]
+    #Conf values min
+    initial_weights = np.min(
+        np.vstack((src_conf[common_mask], dst_conf[common_mask])),
+        axis=0
+    )
+
+    sim3_transform = robust_weighted_estimate_sim3(src_point, dst_point, initial_weights)
+
+    s = sim3_transform.s
+    trans = np.hstack((sim3_transform.R, sim3_transform.t))
+
+    return s, trans
