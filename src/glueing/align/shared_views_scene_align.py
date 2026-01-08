@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import huber
 
-from third_party.vggt_long.sim3_utils import robust_weighted_estimate_sim3
+from .third_party.vggt_long.sim3_utils import robust_weighted_estimate_sim3
 
 
 def as_homogeneous(extrinsic: np.ndarray) -> np.ndarray:
