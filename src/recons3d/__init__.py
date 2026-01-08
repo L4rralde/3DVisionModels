@@ -2,12 +2,16 @@ import os
 import sys
 import importlib
 from threading import Thread
+import pkgutil
 
 from .api import Server, Client
-
+from . import inference
 
 __inference_path = os.path.join(os.path.dirname(__file__), 'inference')
-available_models = os.listdir(__inference_path)
+available_models = [
+    module.name
+    for module in pkgutil.iter_modules(inference.__path__)
+]
 
 
 def get_model_cls(model_name: str):
