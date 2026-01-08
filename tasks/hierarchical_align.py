@@ -10,12 +10,13 @@ from src.glueing import (
     ConnectedClusterTree,
     SceneTree,
     est_scenes_transform,
+    vggtlong_est_scenes_transform,
     transform_scene
 )
 
 
 def child_align(src_scene: dict, dst_scene: dict) -> dict:
-    s, T = est_scenes_transform(src_scene, dst_scene)
+    s, T = vggtlong_est_scenes_transform(src_scene, dst_scene)
     t_scene = transform_scene(src_scene, T, s)
     return t_scene
 

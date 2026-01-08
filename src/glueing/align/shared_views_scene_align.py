@@ -170,9 +170,7 @@ def vggtlong_est_scenes_transform(
 
     src_point = src_scene["world_points"][src_idcs][common_mask]
     dst_point = dst_scene["world_points"][dst_idcs][common_mask]
-
-    print(src_point.shape, dst_point.shape)
-
+    
     #Weighting?
     #Conf values multiplication
     #initial_weights = src_conf[common_mask]*dst_conf[common_mask]
@@ -181,10 +179,9 @@ def vggtlong_est_scenes_transform(
         np.vstack((src_conf[common_mask], dst_conf[common_mask])),
         axis=0
     )
-
     sim3_transform = robust_weighted_estimate_sim3(src_point, dst_point, initial_weights)
 
-    s = sim3_transform.s
-    trans = np.hstack((sim3_transform.R, sim3_transform.t))
+    s, R, t= sim3_transform.astuple()
+    trans = np.hstack((R, np.expand_dims(t, axis=1)))
 
     return s, trans

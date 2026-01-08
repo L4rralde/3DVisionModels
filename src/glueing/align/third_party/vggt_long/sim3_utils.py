@@ -30,6 +30,9 @@ class Sim3Transform:
     def __call__(self, points: np.ndarray) -> np.ndarray:
         return apply_sim3(points, self.s, self.R, self.t)
 
+    def astuple(self) -> tuple:
+        return (self.s, self.R, self.t)
+
 
 def estimate_sim3(source_points: np.ndarray, target_points) -> Sim3Transform:
     mu_src = np.mean(source_points, axis=0)
@@ -173,9 +176,11 @@ def robust_weighted_estimate_sim3(
     delta: (1). Huber loss delta
     """
     if using_sim3:
-        s, R, t = weighted_estimate_sim3(src, tgt, init_weights)
+        transform = weighted_estimate_sim3(src, tgt, init_weights)
     else:
-        s, R, t = weighted_estimate_se3(src, tgt, init_weights)
+        transform = weighted_estimate_se3(src, tgt, init_weights)
+    s, R, t = transform.astuple()
+
     prev_error = float('inf')
     
     for iters in range(max_iters):
@@ -194,9 +199,10 @@ def robust_weighted_estimate_sim3(
         combined_weights /= (np.sum(combined_weights) + 1e-12)
         
         if using_sim3:
-            s_new, R_new, t_new = weighted_estimate_sim3(src, tgt, combined_weights)
+            new_transform = weighted_estimate_sim3(src, tgt, combined_weights)
         else:
-            s_new, R_new, t_new = weighted_estimate_se3(src, tgt, combined_weights)
+            new_transform = weighted_estimate_se3(src, tgt, combined_weights)
+        s_new, R_new, t_new = new_transform.astuple()
 
         param_change = np.abs(s_new - s) + np.linalg.norm(t_new - t)
         rot_angle = np.arccos(min(1.0, max(-1.0, (np.trace(R_new @ R.T) - 1)/2)))
