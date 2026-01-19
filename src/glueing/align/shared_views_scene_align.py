@@ -81,7 +81,7 @@ def relative_transform(
     src_pose = as_homogeneous(src_extrinsic)
     dst_pose = as_homogeneous(dst_extrinsic)
 
-    #dst = src @ T
+    #dst = src @ T^{-1}
     transform = np.linalg.inv(src_pose) @ dst_pose
 
     return transform[:3, :]

@@ -153,3 +153,31 @@ Several of this intrinsic camera parameters, such as the focal length, or the ph
 
 This model also ignores zoom lenses, which have the capability to vary the focal length.
 
+Finally (To be elaborated later), we include the extrinsic matrix and we can project a 3D point from any scene coordinate frame (no need to be attached to the camera) to the image (in pixel units) coordinate system.
+
+$$
+    p = \frac{1}{Z_c} \mathcal K
+        \begin{bmatrix}
+             R & t 
+        \end{bmatrix}
+        P_w
+$$
+
+But you know, the scaling to $\frac{1}{Z}$ is used just to ensure the last element of $p$ equals 1. In practice, we can omit this factor and apply it when computing the pixel coordinates. This is true because the following holds:
+
+$$
+\begin{bmatrix}
+    u & v & 1
+\end{bmatrix}^T
+= 
+\begin{bmatrix}
+    Zu & Zv & Z
+\end{bmatrix}^T
+=
+Z
+\begin{bmatrix}
+    u & v & 1
+\end{bmatrix}^T
+$$
+
+For every $z \in R$.
