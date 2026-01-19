@@ -4,6 +4,8 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import huber
 
+from .third_party.vggt_long.sim3_utils import robust_weighted_estimate_sim3
+
 
 def as_homogeneous(extrinsic: np.ndarray) -> np.ndarray:
     homo = np.eye(4)
@@ -40,12 +42,14 @@ def est_scale_factor(
     return scale
 
 
+#FUTURE: rename to depth_to_pointmap
 def depth_to_frame(
     depth: np.ndarray,
     intrinsic: np.ndarray,
     extrinsic: np.ndarray,
     scale: float=1.0
 ) -> np.ndarray:
+    #Extrinsic world to cam. Camera pose
     ext_w2c = as_homogeneous(extrinsic) #Copy
     K = intrinsic
     K_inv = np.linalg.inv(K)
@@ -62,7 +66,7 @@ def depth_to_frame(
     rays = K_inv @ pix.T
 
     Xc = rays * d_flat[None, :]
-    Xc_h = np.vstack([Xc, np.ones((1, Xc.shape[1]))])
+    Xc_h = np.vstack([Xc, np.ones((1, Xc.shape[1]))]) #Homogeneus vector of each ray
     c2w = np.linalg.inv(ext_w2c)
     Xw = (c2w @ Xc_h)[:3].T.astype(np.float32)  # (M,3)
     Xw = Xw.reshape(H, W, 3)
@@ -77,7 +81,7 @@ def relative_transform(
     src_pose = as_homogeneous(src_extrinsic)
     dst_pose = as_homogeneous(dst_extrinsic)
 
-    #dst = T @ src
+    #dst = src @ T^{-1}
     transform = np.linalg.inv(src_pose) @ dst_pose
 
     return transform[:3, :]
@@ -93,7 +97,7 @@ def est_scenes_transform(
     if not common_images:
         raise ValueError("Non-overlapping scenes")
     
-    #By the moment use first appearance only
+    #By the moment use first appearance only #FIXME. Is this comment still valid?
     link_name = list(common_images)[0]
 
     src_idcs = [src_names.index(name) for name in common_images]
@@ -145,3 +149,45 @@ def transform_scene(
         new_scene['world_points'][i] = points
 
     return new_scene
+
+
+def vggtlong_est_scenes_transform(
+    src_scene: dict,
+    dst_scene: dict
+) -> Tuple[float, np.ndarray]:
+    #FIXME. Duplicated code.
+    src_names = list(src_scene['image_names'])
+    dst_names = list(dst_scene['image_names'])
+    common_images = set(src_names).intersection(set(dst_names))
+    if not common_images:
+        raise ValueError("Non-overlapping scenes")
+
+    src_idcs = [src_names.index(name) for name in common_images]
+    dst_idcs = [dst_names.index(name) for name in common_images]
+
+    src_conf = src_scene["conf"][src_idcs]
+    dst_conf = dst_scene["conf"][dst_idcs]
+    common_mask = get_conf_mask(src_conf) & get_conf_mask(dst_conf)
+
+    src_point = src_scene["world_points"][src_idcs][common_mask]
+    dst_point = dst_scene["world_points"][dst_idcs][common_mask]
+    
+    #Weighting?
+    #Conf values multiplication
+    #initial_weights = src_conf[common_mask]*dst_conf[common_mask]
+    #Conf values min
+    initial_weights = np.min(
+        np.vstack((src_conf[common_mask], dst_conf[common_mask])),
+        axis=0
+    )
+    sim3_transform = robust_weighted_estimate_sim3(src_point, dst_point, initial_weights)
+
+    s, R, t= sim3_transform.astuple()
+    #t = t/s
+    trans = np.hstack((R, np.expand_dims(t, axis=1)))
+
+    trans_h = as_homogeneous(trans)
+    trans_h = np.linalg.inv(trans_h)
+    trans = trans_h[:3]
+
+    return s, trans
