@@ -96,21 +96,21 @@ def est_scenes_transform(
     #By the moment use first appearance only
     link_name = list(common_images)[0]
 
-    src_idx = src_names.index(link_name)
-    dst_idx = dst_names.index(link_name)
+    src_idcs = [src_names.index(name) for name in common_images]
+    dst_idcs = [dst_names.index(name) for name in common_images]
 
-    src_depth = src_scene["depth"][src_idx]
-    src_conf = src_scene["conf"][src_idx]
-    src_extrinsic = src_scene["extrinsic"][src_idx]
+    src_depth = src_scene["depth"][src_idcs]
+    src_conf = src_scene["conf"][src_idcs]
 
-    dst_depth = dst_scene["depth"][dst_idx]
-    dst_conf = dst_scene["conf"][dst_idx]
-    dst_extrinsic = dst_scene["extrinsic"][dst_idx]
+    dst_depth = dst_scene["depth"][dst_idcs]
+    dst_conf = dst_scene["conf"][dst_idcs]
 
     scale = est_scale_factor(
         src_depth, src_conf, dst_depth, dst_conf
     )
 
+    src_extrinsic = src_scene["extrinsic"][src_idcs[0]]
+    dst_extrinsic = dst_scene["extrinsic"][dst_idcs[0]]
     src_extrinsic_cp = np.copy(src_extrinsic)
     src_extrinsic_cp[:3, -1] *= scale
 
