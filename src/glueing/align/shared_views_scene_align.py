@@ -43,7 +43,7 @@ def est_scale_factor(
 
 
 #FUTURE: rename to depth_to_pointmap
-def depth_to_frame(
+def depth_to_pointmap(
     depth: np.ndarray,
     intrinsic: np.ndarray,
     extrinsic: np.ndarray,
@@ -145,7 +145,7 @@ def transform_scene(
     )
 
     for i, (depth, intrinsic, extrinsic) in enumerate(iterator):
-        points = depth_to_frame(depth, intrinsic, extrinsic)
+        points = depth_to_pointmap(depth, intrinsic, extrinsic)
         new_scene['world_points'][i] = points
 
     return new_scene
@@ -191,3 +191,5 @@ def vggtlong_est_scenes_transform(
     trans = trans_h[:3]
 
     return s, trans
+
+

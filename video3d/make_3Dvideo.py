@@ -8,7 +8,7 @@ from tqdm import tqdm
 from utils import to_pointcloud
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from src.glueing.align import est_scale_factor, depth_to_frame
+from src.glueing.align import est_scale_factor, depth_to_pointmap
 
 
 def parse_args():
@@ -52,7 +52,7 @@ def main():
             scene_depth, scene_conf
         )
 
-        frame_world_points = depth_to_frame(
+        frame_world_points = depth_to_pointmap(
             frame_depth, scene_intrinsic, scene_extrinsic, scale
         )
         
